@@ -40,6 +40,7 @@
   (define make-mem make-eq-hashtable)
   (define (mem-set! mem addr v) (hashtable-set! mem addr v))
   (define (mem-get  mem addr) (hashtable-ref mem addr 0.0))
+  (define (mem-addresses mem) (vector->list (hashtable-keys mem)))
 
   (define (make-vm)
     (make-orbit-vm
@@ -62,6 +63,7 @@
   (define (mem vm addr)    (mem-get (orbit-vm-mem vm) addr))
   (define (mem! vm addr v) (mem-set! (orbit-vm-mem vm) addr v))
   (define (inp vm addr)    (display "Input needed ") (display addr) (newline) (mem-get (orbit-vm-inp vm) addr))
+  (define (inp! vm addr v) (mem-set! (orbit-vm-inp vm) addr v))
   (define (out! vm addr v) (display "Outputing ") (display addr) (display ": ") (display v) (newline)(mem-set! (orbit-vm-out vm) addr v))
   (define (status vm)      (orbit-vm-status vm))
   (define (status! vm x)   (orbit-vm-status-set! vm x))
@@ -188,22 +190,34 @@
                              (d-type-code-r1 instr)
                              (d-type-code-r2 instr))) ))
 
+
   (define (interpret-step-vm vm instrs)
     (for-each (lambda (i) (interpret-run-instr-code vm i)) instrs))
 
 
+
+  (define (time-step! vm code input)
+    (for-each (lambda (i) (inp! vm (car i) (cdr i))) input)
+
+    (interpret-step-vm vm code)
+
+    (map (lambda (a)
+           (cons a (mem-get (orbit-vm-out vm) a)))
+         (mem-addresses (orbit-vm-out vm))))
+
+
   (define (test-run)
     (let ((vm (make-vm))
-          (obj (load-obj-from-file "bin2.obf")))
-      (init-memory! vm (obj->memory-alist obj))
-      (interpret-step-vm vm (compile-instrs (obj->instrs-alist obj)))
-      ;(dump-vm vm)
-      ))
+          (obj (load-obj-from-file "bin1.obf")))
 
-  (define (dump-vm vm)
-    (pretty-print (hashtable-entries (orbit-vm-mem vm)))
-    (pretty-print (hashtable-entries (orbit-vm-out vm)))
-    (pretty-print (orbit-vm-status vm)))
+      (init-memory! vm (obj->memory-alist obj))
+      (let ((code (compile-instrs (obj->instrs-alist obj))))
+        (do ((i 0 (+ i 1))) ((> i 0) i)
+          (time-step! vm code '((#x1e80 . 1001)
+                                (3 . 0)
+                                (2 . 0)))
+          )
+        )))
 
   )
 
@@ -211,6 +225,6 @@
 ;(import (core)) ;;ypsilon
 (import (obf))
 
-(test-run)
+(pretty-print (test-run))
 ;(exit)
 
