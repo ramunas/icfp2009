@@ -62,9 +62,9 @@
   ;; instruction operations
   (define (mem vm addr)    (mem-get (orbit-vm-mem vm) addr))
   (define (mem! vm addr v) (mem-set! (orbit-vm-mem vm) addr v))
-  (define (inp vm addr)    (display "Input needed ") (display addr) (newline) (mem-get (orbit-vm-inp vm) addr))
+  (define (inp vm addr)    (begin (display "Input needed ") (display addr) (newline))  (mem-get (orbit-vm-inp vm) addr))
   (define (inp! vm addr v) (mem-set! (orbit-vm-inp vm) addr v))
-  (define (out! vm addr v) (display "Outputing ") (display addr) (display ": ") (display v) (newline)(mem-set! (orbit-vm-out vm) addr v))
+  (define (out! vm addr v) (begin (display "Outputing ") (display addr) (display ": ") (display v) (newline)) (mem-set! (orbit-vm-out vm) addr v))
   (define (status vm)      (orbit-vm-status vm))
   (define (status! vm x)   (orbit-vm-status-set! vm x))
 
@@ -132,18 +132,18 @@
     (fields instr r1 r2 rd))
 
   (define (load-instr i rd)
-    (let ((op-code (bitwise-bit-field i 28 31)))
+    (let ((op-code (bitwise-bit-field i 28 32)))
       (if (= op-code 0) ;; s-type
-        (let ((s-op-code (bitwise-bit-field i 24 27))
-              (imm-code  (bitwise-bit-field i 21 23))
-              (r1        (bitwise-bit-field i 0  13)))
+        (let ((s-op-code (bitwise-bit-field i 24 28))
+              (imm-code  (bitwise-bit-field i 21 24))
+              (r1        (bitwise-bit-field i 0  14)))
           (make-s-type-code
             (instr-set-get s-type-instr-set s-op-code)
             (instr-set-get cmpz-imm-ops-set imm-code)
             r1 rd))
         ;; d-type
-        (let ((r1 (bitwise-bit-field i 14 27))
-              (r2 (bitwise-bit-field i 0  13)))
+        (let ((r1 (bitwise-bit-field i 14 28))
+              (r2 (bitwise-bit-field i 0  14)))
           (make-d-type-code
             (instr-set-get d-type-instr-set op-code)
             r1 r2 rd)))))
@@ -213,7 +213,7 @@
       (init-memory! vm (obj->memory-alist obj))
       (let ((code (compile-instrs (obj->instrs-alist obj))))
         (do ((i 0 (+ i 1))) ((> i 0) i)
-          (time-step! vm code '((#x1e80 . 1001)
+          (time-step! vm code '((#x3e80 . 1001)
                                 (3 . 0)
                                 (2 . 0)))
           )
@@ -224,7 +224,10 @@
 ;(import (ikarus))
 ;(import (core)) ;;ypsilon
 (import (obf))
+(import (vis))
+(run)
 
-(pretty-print (test-run))
+(test-run)
+;(pretty-print (test-run))
 ;(exit)
 
