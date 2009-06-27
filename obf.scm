@@ -62,9 +62,9 @@
   ;; instruction operations
   (define (mem vm addr)    (mem-get (orbit-vm-mem vm) addr))
   (define (mem! vm addr v) (mem-set! (orbit-vm-mem vm) addr v))
-  (define (inp vm addr)    (begin (display "Input needed ") (display addr) (newline))  (mem-get (orbit-vm-inp vm) addr))
+  (define (inp vm addr)    #;(begin (display "Input needed ") (display addr) (newline))  (mem-get (orbit-vm-inp vm) addr))
   (define (inp! vm addr v) (mem-set! (orbit-vm-inp vm) addr v))
-  (define (out! vm addr v) (begin (display "Outputing ") (display addr) (display ": ") (display v) (newline)) (mem-set! (orbit-vm-out vm) addr v))
+  (define (out! vm addr v) #;(begin (display "Outputing ") (display addr) (display ": ") (display v) (newline)) (mem-set! (orbit-vm-out vm) addr v))
   (define (status vm)      (orbit-vm-status vm))
   (define (status! vm x)   (orbit-vm-status-set! vm x))
 
@@ -206,28 +206,60 @@
          (mem-addresses (orbit-vm-out vm))))
 
 
-  (define (test-run)
+  (define (load-vm-from-file file)
     (let ((vm (make-vm))
-          (obj (load-obj-from-file "bin1.obf")))
-
+          (obj (load-obj-from-file file)))
       (init-memory! vm (obj->memory-alist obj))
       (let ((code (compile-instrs (obj->instrs-alist obj))))
-        (do ((i 0 (+ i 1))) ((> i 0) i)
-          (time-step! vm code '((#x3e80 . 1001)
-                                (3 . 0)
-                                (2 . 0)))
+        (values vm code))))
+
+
+  ;; physics
+  (define earth-radius 6.357e6) ; meters
+  (define dt 1) ; seconds
+
+
+  (define (hohmann-gp-vis op)
+    ; 0 - score
+    ; 1 - fuel remaining
+    ; 2 - sx
+    ; 3 - sy
+    ; 4 - target orbit radius
+    (let ((sx (cdr (assq 2 op)))
+          (sy (cdr (assq 3 op)))
+          (tr (cdr (assq 4 op))) )
+      (display "plot ")
+      (display "sin(t)*") (display earth-radius)
+      (display ",cos(t)*") (display earth-radius)
+
+      (display ",sin(t)*") (display (/ earth-radius 30))
+      (display "+") (display sx)
+
+      (display ",cos(t)*") (display (/ earth-radius 30))
+      (display "+") (display sy)
+
+      (display ",sin(t)*") (display tr)
+      (display ",cos(t)*") (display tr)
+      (newline)
+      )
+    )
+
+
+  (define (test-run)
+    (let-values (((vm code) (load-vm-from-file "bin1.obf")))
+      (do ((i 0 (+ i 1))) ((> i 1000) i)
+        (let ((results (time-step! vm code '((#x3e80 . 1001)
+                                             (3 . 0)
+                                             (2 . 0))) ))
+          (display "set parametric")(newline)
+          (hohmann-gp-vis results) (newline)
+          (display "pause 0.0001") (newline)
           )
         )))
 
+
   )
 
-;(import (ikarus))
-;(import (core)) ;;ypsilon
 (import (obf))
-(import (vis))
-(run)
-
 (test-run)
-;(pretty-print (test-run))
-;(exit)
 
