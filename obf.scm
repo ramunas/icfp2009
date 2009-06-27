@@ -67,13 +67,35 @@
         ;; s-type
         (list (cdr (assq (bitwise-bit-field i 24 27) s-type-instr))
               ;; only cmpz uses this
-              (cdr (assq (bitwise-bit-field i 20 23) imm-op-code))
+              (cdr (assq (bitwise-bit-field i 21 23) imm-op-code))
               (bitwise-bit-field i 0 13))
 
         ;; d-type
         (list (cdr (assq a d-type-instr))
               (bitwise-bit-field i 14 27)
               (bitwise-bit-field i 0  13)) )))
+
+
+
+  (define-record-type orbit-vm (fields 
+                                 mem
+                                 inp
+                                 out
+                                 status
+                                 pc))
+
+  ;(define (mem vm r)
+    ;(hashtable-ref (orbit-vm-mem vm) r 0.0))
+
+  ;(define (rd! vm v)
+    ;(hashtable-set! (orbit-vm-mem vm) retrun-address v))
+
+  ;(define (load-obj port)
+    ;(let loop ((evn #t)
+               ;(ins 0))
+      ;(if (port-eof? port)
+      ;)
+    ;)
 
   )
 
