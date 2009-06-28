@@ -1,6 +1,6 @@
 (library (obf)
   (export
-    test-run)
+    honmann-1001 test-run)
   (import
     (rnrs)
     (rnrs r5rs)
@@ -200,9 +200,7 @@
 
   (define (time-step! vm code input)
     (for-each (lambda (i) (inp! vm (car i) (cdr i))) input)
-
     (interpret-step-vm vm code)
-
     (map (lambda (a)
            (cons a (mem-get (orbit-vm-out vm) a)))
          (mem-addresses (orbit-vm-out vm))))
@@ -226,6 +224,10 @@
                  (if (string=? a "")
                    b
                    (string-append a del b))) "" strings))
+
+  (define (plot-init)
+    (display "set parametric")
+    (newline))
 
   (define (plot . objs)
     (display "plot ")
@@ -292,41 +294,55 @@
   ;;
   ;; problems
   ;;
-  (define (hohmann-gp-vis op)
-    ; 0 - score
-    ; 1 - fuel remaining
-    ; 2 - sx
-    ; 3 - sy
-    ; 4 - target orbit radius
-    (let ((sx (cdr (assq 2 op)))
-          (sy (cdr (assq 3 op)))
-          (fl (cdr (assq 1 op)))
-          (sc (cdr (assq 0 op)))
-          (tr (cdr (assq 4 op))) )
-      (plot
-        (plot-circle 0 0 earth-radius "Earth")
-        (plot-circle sx sy (/ earth-radius 30) "Satallite")
-        (plot-circle 0 0 tr "Target orbit")
-        (plot-info "Fuel" fl)
-        (plot-info "Score" sc) )))
+
+  (define-syntax let-al
+    (syntax-rules ()
+      ((_ al ((n idx) ...) body ...)
+       (let ((n (cdr (assq idx al))) ...)
+         body ...))))
 
 
-  (define (test-run)
-    (let-values (((vm code) (load-vm-from-file "bin1.obf")))
-      (display "set parametric")(newline)
-      (do ((i 0 (+ i 1))) ((> i 20000) i)
-        (let ((results (time-step! vm code '((#x3e80 . 1001)
-                                             (3 . 0)
-                                             (2 . 0))) ))
-          (if (= (mod i 50) 0)
-            (begin
-              (hohmann-gp-vis results) (newline) ))
-          ;(display "pause 0.0001") (newline)
-          )
-        )))
+  (define (solve-problem file proc)
+    (let-values (((vm code) (load-vm-from-file file)))
+      (proc (lambda (input-ports) (time-step! vm code input-ports)))))
 
+
+  (define (hohmann-gp-vis sx sy fl sc tr)
+    (plot
+      (plot-circle 0 0 earth-radius "Earth")
+      (plot-circle sx sy (/ earth-radius 30) "Satallite")
+      (plot-circle 0 0 tr "Target orbit")
+      (plot-info "Fuel" fl)
+      (plot-info "Score" sc) ))
+
+  ; 0 - score
+  ; 1 - fuel remaining
+  ; 2 - sx
+  ; 3 - sy
+  ; 4 - target orbit radius
+  (define (honmann-1001)
+    (plot-init)
+    (solve-problem "bin1.obf" (lambda (step!)
+                                (define (s vx vy) (step! `((#x3e80 . 1001)
+                                                           (2 . ,vx)
+                                                           (3 . ,vy))))
+                                  (let-al (s 0 0) ((sx 2)
+                                                 (sy 3)
+                                                 (fl 1)
+                                                 (sc 0)
+                                                 (tr 4))
+                                          (hohmann-gp-vis sx sy fl sc tr)
+                                          )
+                                ))
+    (display "pause 4") (newline)
+    )
+
+
+  (define test-run honmann-1001)
 
   )
+
+
 
 (import (obf))
 (test-run)
