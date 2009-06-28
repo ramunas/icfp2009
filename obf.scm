@@ -2,7 +2,6 @@
   (export
     test-run)
   (import
-    (core)
     (rnrs)
     (rnrs r5rs)
     (rnrs arithmetic bitwise)
@@ -218,6 +217,32 @@
   (define earth-radius 6.357e6) ; meters
   (define dt 1) ; seconds
 
+  (define (string-join del strings)
+    (fold-left (lambda (a b)
+                 (if (string=? a "")
+                   b
+                   (string-append a del b))) "" strings))
+
+  (define (plot . objs)
+    (display "plot ")
+    (display (string-join "," objs))
+    (newline))
+
+
+  (define (plot-circle x y radius caption)
+    (let ((sx (number->string x))
+          (sy (number->string y))
+          (sr (number->string radius)))
+      (string-append
+        "sin(t)*" sr "+" sx ","
+        "cos(t)*" sr "+" sy " "
+        "title \""
+        "(" sx ", " sy "), " sr " - " caption "\"")))
+
+  (define (plot-info caption val)
+    (string-append
+      "0,0 title \"" (number->string val) " - " caption "\""))
+
 
   (define (hohmann-gp-vis op)
     ; 0 - score
@@ -227,33 +252,31 @@
     ; 4 - target orbit radius
     (let ((sx (cdr (assq 2 op)))
           (sy (cdr (assq 3 op)))
+          (fl (cdr (assq 1 op)))
+          (sc (cdr (assq 0 op)))
           (tr (cdr (assq 4 op))) )
-      (display "plot ")
-      (display "sin(t)*") (display earth-radius)
-      (display ",cos(t)*") (display earth-radius)
 
-      (display ",sin(t)*") (display (/ earth-radius 30))
-      (display "+") (display sx)
-
-      (display ",cos(t)*") (display (/ earth-radius 30))
-      (display "+") (display sy)
-
-      (display ",sin(t)*") (display tr)
-      (display ",cos(t)*") (display tr)
-      (newline)
-      )
-    )
+      (plot
+        (plot-circle 0 0 earth-radius "Earth")
+        (plot-circle sx sy (/ earth-radius 30) "Satallite")
+        (plot-circle 0 0 tr "Target radius")
+        (plot-info "Fuel" fl)
+        (plot-info "Score" sc)
+        )
+      ))
 
 
   (define (test-run)
     (let-values (((vm code) (load-vm-from-file "bin1.obf")))
-      (do ((i 0 (+ i 1))) ((> i 1000) i)
+      (display "set parametric")(newline)
+      (do ((i 0 (+ i 1))) ((> i 20000) i)
         (let ((results (time-step! vm code '((#x3e80 . 1001)
                                              (3 . 0)
                                              (2 . 0))) ))
-          (display "set parametric")(newline)
-          (hohmann-gp-vis results) (newline)
-          (display "pause 0.0001") (newline)
+          (if (= (mod i 50) 0)
+            (begin
+              (hohmann-gp-vis results) (newline) ))
+          ;(display "pause 0.0001") (newline)
           )
         )))
 
