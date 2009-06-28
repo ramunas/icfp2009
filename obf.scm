@@ -256,10 +256,16 @@
   (define (v x y)
     (vector x y))
 
+  (define (vx v) (vector-ref v 0))
+  (define (vy v) (vector-ref v 1))
+
   (define (v+ a b)
     (vector
       (+ (vector-ref a 0) (vector-ref b 0))
       (+ (vector-ref a 1) (vector-ref b 1))))
+
+  (define (v- a b)
+    (v+ a (v* -1 b)))
 
   (define (v. a b) ;; dot product
     (+
@@ -275,7 +281,7 @@
     (sqrt (v. a a)))
 
   (define (vn a) ;; normalize
-    (v* (1 / (vm a)) a))
+    (v* (/ 1 (vm a)) a))
 
   (define (v-tangent a) ;; rotated counter clockwize 90
     (vector
@@ -287,8 +293,12 @@
   ;; physics
   ;;
   (define earth-radius 6.357e6) ; m
-  (define earht-mass 6e24)      ; Kg
+  (define g-constant 6.67428e-11) ; m^3 1/kg 1/s^2
+  (define earth-mass 6.0e24)      ; kg
+  ;(define earth-g-param 398600.4418)
+  (define earth-g-param (* earth-mass g-constant))
   (define dt 1)                 ; s
+  (define pi (acos -1))
 
 
   ;;
@@ -307,13 +317,52 @@
       (proc (lambda (input-ports) (time-step! vm code input-ports)))))
 
 
-  (define (hohmann-gp-vis sx sy fl sc tr)
-    (plot
-      (plot-circle 0 0 earth-radius "Earth")
-      (plot-circle sx sy (/ earth-radius 30) "Satallite")
-      (plot-circle 0 0 tr "Target orbit")
-      (plot-info "Fuel" fl)
-      (plot-info "Score" sc) ))
+  (define (hohmann-gp-vis sx sy fl sc tr . more-plots)
+    (apply plot (append
+                  (list (plot-circle 0 0 earth-radius "Earth")
+                        (plot-circle sx sy (/ earth-radius 30) "Satallite")
+                        (plot-circle 0 0 tr "Target orbit")
+                        (plot-info "Fuel" fl)
+                        (plot-info "Score" sc))
+                  more-plots)))
+
+
+
+  ;;
+  ;; from: http://www.braeunig.us/space/orbmech.htm
+  ;;
+  (define (atx r1 r2) (/ (+ r1 r2) 2.0))
+
+  (define (velocity-initial-a r1)
+    (sqrt (/ earth-g-param r1)))
+
+  (define (velocity-initial-b r2)
+    (sqrt (/ earth-g-param r2)))
+
+  (define (velocity-on-transfer-a r1 r2)
+    (sqrt (* earth-g-param (- (/ 2.0 r1) (/ 1.0 (atx r1 r2))))))
+
+  (define (velocity-on-transfer-b r1 r2)
+    (sqrt (* earth-g-param (- (/ 2.0 r2) (/ 1.0 (atx r1 r2))))))
+
+  ;; this for the first velocity change
+  (define (velocity-initial-change-a r1 r2)
+    (- (velocity-on-transfer-a r1 r2)
+       (velocity-initial-a r1)))
+
+  ;; this is for the second velocity change
+  (define (velocity-initial-change-b r1 r2)
+    (- (velocity-initial-b r2)
+       (velocity-on-transfer-b r1 r2)))
+
+  (define (time-period r1 r2)
+    (let ((a (atx r1 r2)))
+      (* pi (sqrt (/ (expt a 3) earth-g-param)))))
+
+
+  (define (delta-velocity org pos vel)
+    (v* vel (vn (v-tangent (v- pos org)))))
+
 
   ; 0 - score
   ; 1 - fuel remaining
@@ -322,19 +371,45 @@
   ; 4 - target orbit radius
   (define (honmann-1001)
     (plot-init)
-    (solve-problem "bin1.obf" (lambda (step!)
-                                (define (s vx vy) (step! `((#x3e80 . 1001)
-                                                           (2 . ,vx)
-                                                           (3 . ,vy))))
-                                  (let-al (s 0 0) ((sx 2)
-                                                 (sy 3)
-                                                 (fl 1)
-                                                 (sc 0)
-                                                 (tr 4))
-                                          (hohmann-gp-vis sx sy fl sc tr)
-                                          )
-                                ))
-    (display "pause 4") (newline)
+    (solve-problem
+      "bin1.obf"
+      (lambda (step!)
+        (define (s vx vy) (step! `((#x3e80 . 1001)
+                                   (2 . ,vx)
+                                   (3 . ,vy))))
+        (let-al (s 0 0) ((sx 2) (sy 3) (fl 1) (sc 0) (r2 4))
+                (let* ((pos (v sx sy))
+                       (r1  (vm pos))
+                       (dv  (velocity-initial-change-a r1 r2))
+                       (dv2 (velocity-initial-change-b r1 r2))
+                       ;(tng (vn (v-tangent pos)))
+                       ;(vlv (v* dv tng))
+                       (vlv (delta-velocity (v 0 0) pos dv))
+                       (x (vx vlv))
+                       (y (vy vlv))
+                       (th (time-period r1 r2))
+                       ;(th (time-of-flight r1 r2))
+                       )
+
+                  (s x y)
+
+                  (do ((i 0 (+ i 1))) ((> i 9000) #f)
+                    ;(let ((nx (if (= i 4000)
+                    (let-al (s 0 0) ((sx 2) (sy 3) (fl 1) (sc 0) (tr 4))
+                            (if (= 0 (mod i 20))
+                              (hohmann-gp-vis sx sy fl sc tr
+                                              (plot-info "dv" dv)
+                                              (plot-info "VelX" x)
+                                              (plot-info "VelY" y)
+                                              (plot-info "r1" r1)
+                                              (plot-info "r2" tr)
+                                              (plot-info "th" th)
+                                              (plot-info "time" i)
+                                              ))))
+                  )
+                )
+        ))
+    ;(display "pause 4") (newline)
     )
 
 
