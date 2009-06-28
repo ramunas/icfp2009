@@ -8,6 +8,9 @@
     (rnrs io ports))
 
 
+  ;;
+  ;; virtual machine
+  ;;
   (define (read-d64le port)
     (bytevector-ieee-double-ref
       (get-bytevector-n port 8) 0 (endianness little)))
@@ -213,11 +216,11 @@
         (values vm code))))
 
 
-  ;; physics
-  (define earth-radius 6.357e6) ; m
-  (define earht-mass 6e24)      ; Kg
-  (define dt 1)                 ; s
 
+
+  ;;
+  ;; visualization
+  ;;
   (define (string-join del strings)
     (fold-left (lambda (a b)
                  (if (string=? a "")
@@ -228,7 +231,6 @@
     (display "plot ")
     (display (string-join "," objs))
     (newline))
-
 
   (define (plot-circle x y radius caption)
     (let ((sx (number->string x))
@@ -246,6 +248,50 @@
 
 
 
+  ;;
+  ;; vector math
+  ;;
+  (define (v x y)
+    (vector x y))
+
+  (define (v+ a b)
+    (vector
+      (+ (vector-ref a 0) (vector-ref b 0))
+      (+ (vector-ref a 1) (vector-ref b 1))))
+
+  (define (v. a b) ;; dot product
+    (+
+      (* (vector-ref a 0) (vector-ref b 0))
+      (* (vector-ref a 1) (vector-ref b 1))))
+
+  (define (v* s a) ;; mul scalar
+    (vector
+      (* s (vector-ref a 0))
+      (* s (vector-ref a 1))))
+
+  (define (vm a) ;; maginute
+    (sqrt (v. a a)))
+
+  (define (vn a) ;; normalize
+    (v* (1 / (vm a)) a))
+
+  (define (v-tangent a) ;; rotated counter clockwize 90
+    (vector
+      (* -1 (vector-ref a 1))
+      (vector-ref a 0)))
+
+
+  ;;
+  ;; physics
+  ;;
+  (define earth-radius 6.357e6) ; m
+  (define earht-mass 6e24)      ; Kg
+  (define dt 1)                 ; s
+
+
+  ;;
+  ;; problems
+  ;;
   (define (hohmann-gp-vis op)
     ; 0 - score
     ; 1 - fuel remaining
@@ -279,35 +325,6 @@
           )
         )))
 
-
-  (define (v x y)
-    (vector x y))
-
-  (define (v+ a b)
-    (vector
-      (+ (vector-ref a 0) (vector-ref b 0))
-      (+ (vector-ref a 1) (vector-ref b 1))))
-
-  (define (v. a b) ;; dot product
-    (+
-      (* (vector-ref a 0) (vector-ref b 0))
-      (* (vector-ref a 1) (vector-ref b 1))))
-
-  (define (v* s a) ;; mul scalar
-    (vector
-      (* s (vector-ref a 0))
-      (* s (vector-ref a 1))))
-
-  (define (vm a) ;; maginute
-    (sqrt (v. a a)))
-
-  (define (vn a) ;; normalize
-    (v* (1 / (vm a)) a))
-
-  (define (v-tangent a) ;; rotated counter clockwize 90
-    (vector
-      (* -1 (vector-ref a 1))
-      (vector-ref a 0)))
 
   )
 
