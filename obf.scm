@@ -61,9 +61,9 @@
   ;; instruction operations
   (define (mem vm addr)    (mem-get (orbit-vm-mem vm) addr))
   (define (mem! vm addr v) (mem-set! (orbit-vm-mem vm) addr v))
-  (define (inp vm addr)    #;(begin (display "Input needed ") (display addr) (newline))  (mem-get (orbit-vm-inp vm) addr))
+  (define (inp vm addr)    (mem-get (orbit-vm-inp vm) addr))
   (define (inp! vm addr v) (mem-set! (orbit-vm-inp vm) addr v))
-  (define (out! vm addr v) #;(begin (display "Outputing ") (display addr) (display ": ") (display v) (newline)) (mem-set! (orbit-vm-out vm) addr v))
+  (define (out! vm addr v) (mem-set! (orbit-vm-out vm) addr v))
   (define (status vm)      (orbit-vm-status vm))
   (define (status! vm x)   (orbit-vm-status-set! vm x))
 
@@ -214,8 +214,9 @@
 
 
   ;; physics
-  (define earth-radius 6.357e6) ; meters
-  (define dt 1) ; seconds
+  (define earth-radius 6.357e6) ; m
+  (define earht-mass 6e24)      ; Kg
+  (define dt 1)                 ; s
 
   (define (string-join del strings)
     (fold-left (lambda (a b)
@@ -244,6 +245,7 @@
       "0,0 title \"" (number->string val) " - " caption "\""))
 
 
+
   (define (hohmann-gp-vis op)
     ; 0 - score
     ; 1 - fuel remaining
@@ -255,15 +257,12 @@
           (fl (cdr (assq 1 op)))
           (sc (cdr (assq 0 op)))
           (tr (cdr (assq 4 op))) )
-
       (plot
         (plot-circle 0 0 earth-radius "Earth")
         (plot-circle sx sy (/ earth-radius 30) "Satallite")
-        (plot-circle 0 0 tr "Target radius")
+        (plot-circle 0 0 tr "Target orbit")
         (plot-info "Fuel" fl)
-        (plot-info "Score" sc)
-        )
-      ))
+        (plot-info "Score" sc) )))
 
 
   (define (test-run)
@@ -280,6 +279,35 @@
           )
         )))
 
+
+  (define (v x y)
+    (vector x y))
+
+  (define (v+ a b)
+    (vector
+      (+ (vector-ref a 0) (vector-ref b 0))
+      (+ (vector-ref a 1) (vector-ref b 1))))
+
+  (define (v. a b) ;; dot product
+    (+
+      (* (vector-ref a 0) (vector-ref b 0))
+      (* (vector-ref a 1) (vector-ref b 1))))
+
+  (define (v* s a) ;; mul scalar
+    (vector
+      (* s (vector-ref a 0))
+      (* s (vector-ref a 1))))
+
+  (define (vm a) ;; maginute
+    (sqrt (v. a a)))
+
+  (define (vn a) ;; normalize
+    (v* (1 / (vm a)) a))
+
+  (define (v-tangent a) ;; rotated counter clockwize 90
+    (vector
+      (* -1 (vector-ref a 1))
+      (vector-ref a 0)))
 
   )
 
