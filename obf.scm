@@ -1,6 +1,6 @@
 (library (obf)
   (export
-    honmann-1001 test-run)
+    hohmann-1001 test-run)
   (import
     (rnrs)
     (rnrs r5rs)
@@ -76,6 +76,7 @@
 
   (define eps 1.0e-20)
   (define (=0.0 x) (< (abs x) eps))
+  (define (=. a b) (< (abs (- a b)) eps))
   (define (div-op a b)
     (if (=0.0 b)
       0.0
@@ -288,6 +289,17 @@
       (* -1 (vector-ref a 1))
       (vector-ref a 0)))
 
+  (define (v-invert a)
+    (v* -1 a))
+
+  (define (v-col a b)
+    (cond
+      ((or (=0.0 (vy a)) (=0.0 (vy b))) #f)
+      ((and (=0.0 (vy a)) (=0.0 (vy b))) #t)
+      (else (=. (/ (vx a) (vy a)) (/ (vx b) (vy b))) )))
+  ;; or simpler, but with more float calculations
+    ;(=. (abs (v. a b)) (* (vm a) (vm b))))
+
 
   ;;
   ;; physics
@@ -356,8 +368,9 @@
        (velocity-on-transfer-b r1 r2)))
 
   (define (time-period r1 r2)
-    (let ((a (atx r1 r2)))
-      (* pi (sqrt (/ (expt a 3) earth-g-param)))))
+    (/ (sqrt (/ (+ r1 r2) (* 8.0 earth-g-param))) 2.0))
+    ;(let ((a (atx r1 r2)))
+      ;(* pi (sqrt (/ (expt a 3) earth-g-param)))))
 
 
   (define (delta-velocity org pos vel)
@@ -369,7 +382,7 @@
   ; 2 - sx
   ; 3 - sy
   ; 4 - target orbit radius
-  (define (honmann-1001)
+  (define (hohmann-1001)
     (plot-init)
     (solve-problem
       "bin1.obf"
@@ -413,7 +426,7 @@
     )
 
 
-  (define test-run honmann-1001)
+  (define test-run hohmann-1001)
 
   )
 
