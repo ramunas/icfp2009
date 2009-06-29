@@ -17,4 +17,8 @@ when visualization finishes press Ctrl-C to gnuplot in the terminal.
 Program searches for bin1.obf and outputs bin1.obf.osf in the current directory.
 
 
+Code on github:
+http://github.com/ramunas/icfp2009/tree/master
+
+
 Author Ramūnas Gutkovas <ramunasg@gmail.com>
