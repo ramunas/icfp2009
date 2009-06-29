@@ -5,6 +5,7 @@
     (rnrs)
     (rnrs r5rs)
     (rnrs arithmetic bitwise)
+    (rnrs bytevectors)
     (rnrs io ports))
 
 
@@ -15,10 +16,19 @@
     (bytevector-ieee-double-ref
       (get-bytevector-n port 8) 0 (endianness little)))
 
+  (define (write-d64le port val)
+    (let ((v (make-bytevector 8 0)))
+      (bytevector-ieee-double-set! v 0 val (endianness little))
+      (put-bytevector port v)))
 
   (define (read-i32le port)
     (bytevector-s32-ref
       (get-bytevector-n port 4) 0 (endianness little)))
+
+  (define (write-i32le port val)
+    (let ((v (make-bytevector 4 0)))
+      (bytevector-u32-set! v 0 val (endianness little))
+      (put-bytevector port v)))
 
   (define (xchng cns)
     (cons (cdr cns) (car cns)))
@@ -76,6 +86,7 @@
 
   (define eps 1.0e-20)
   (define (=0.0 x) (< (abs x) eps))
+  (define (=e. a b eps) (< (abs (- a b)) eps))
   (define (=. a b) (< (abs (- a b)) eps))
   (define (div-op a b)
     (if (=0.0 b)
@@ -284,8 +295,11 @@
   (define (vn a) ;; normalize
     (v* (/ 1 (vm a)) a))
 
-  (define (va a b)
+  (define (v-cos a b)
     (/ (v. a b) (* (vm a) (vm b))))
+
+  (define (va a b)
+    (acos (v-cos a b)))
 
   (define (v-tangent a) ;; rotated counter clockwize 90
     (vector
@@ -320,16 +334,67 @@
   ;; problems
   ;;
 
+  (define team-id 138)
+  (define magic-nr #xcafebabe)
+
+
   (define-syntax let-al
     (syntax-rules ()
       ((_ al ((n idx) ...) body ...)
        (let ((n (cdr (assq idx al))) ...)
          body ...))))
 
+  (define (drop-same prev-o curr-o)
+    (filter (lambda (o)
+              (let ((po (assq (car o) prev-o)))
+                (or (not po)
+                    (not (= (cdr o) (cdr po)))) )) curr-o))
 
-  (define (solve-problem file proc)
+
+  (define (with-problem-output-file file scenario-id proc)
+    (let ((port (open-file-output-port file)))
+      ;; header
+      (write-i32le port magic-nr)
+      (write-i32le port team-id)
+      (write-i32le port scenario-id)
+      (proc port)
+      (close-port port)))
+
+  (define (write-frame port time-step ports)
+    (write-i32le port time-step)
+    (write-i32le port (length ports))
+    (for-each (lambda (p)
+                (write-i32le port (car p))
+                (write-d64le port (cdr p))) ports))
+
+
+  (define (solve-problem file scenario proc)
     (let-values (((vm code) (load-vm-from-file file)))
-      (proc (lambda (input-ports) (time-step! vm code input-ports)))))
+      (let ((time 0)
+            (inp  '()))
+        (with-problem-output-file
+          "labas.bin"
+          scenario
+          (lambda (o-port)
+
+            (proc (lambda (input-ports)
+                    (let ((o (time-step! vm code input-ports))
+                          (d (drop-same inp input-ports)))
+                      (if (not (null? d))
+                        (begin
+                          ;; write out
+                          (write-frame o-port time d)
+                          (set! inp input-ports)))
+                      (set! time (+ time 1))
+                      o)))
+            ;; write out final frame
+            (write-frame o-port time '())
+            ))
+        )))
+
+  ;(define (solve-problem file proc)
+    ;(let-values (((vm code) (load-vm-from-file file)))
+      ;(proc (lambda (input-ports) (time-step! vm code input-ports)))))
 
 
   (define (hohmann-gp-vis sx sy fl sc tr . more-plots)
@@ -372,12 +437,10 @@
 
   (define (time-period r1 r2)
     (/ (sqrt (/ (+ r1 r2) (* 8.0 earth-g-param))) 2.0))
-    ;(let ((a (atx r1 r2)))
-      ;(* pi (sqrt (/ (expt a 3) earth-g-param)))))
-
 
   (define (delta-velocity org pos vel)
     (v* vel (vn (v-tangent (v- pos org)))))
+
 
 
   ; 0 - score
@@ -389,39 +452,35 @@
     (plot-init)
     (solve-problem
       "bin1.obf"
+      1001
       (lambda (step!)
-        (define (s vx vy) (step! `((#x3e80 . 1001)
-                                   (2 . ,vx)
-                                   (3 . ,vy))))
+        (define (s vx vy) (step! `((#x3e80 . 1001) (2 . ,vx) (3 . ,vy))))
+        ;; read initial values
         (let-al (s 0 0) ((sx 2) (sy 3) (fl 1) (sc 0) (r2 4))
-                (let* ((pos (v sx sy))
-                       (r1  (vm pos))
-                       (dv  (velocity-initial-change-a r1 r2))
-                       (dv2 (velocity-initial-change-b r1 r2))
-                       ;(tng (vn (v-tangent pos)))
-                       ;(vlv (v* dv tng))
-                       (vlv (delta-velocity (v 0 0) pos dv))
-                       (x (vx vlv))
-                       (y (vy vlv))
-                       (th (time-period r1 r2))
-                       ;(th (time-of-flight r1 r2))
-                       )
+                (let* ((pos  (v sx sy))
+                       (r1   (vm pos))
+                       (dvm1 (velocity-initial-change-a r1 r2))
+                       (dvm2 (velocity-initial-change-b r1 r2))
+                       (dvv1 (delta-velocity (v 0 0) pos dvm1))
+                       (dvx  (vx dvv1))
+                       (dvy  (vy dvv1)))
 
-                  (s x y)
+                  (s dvx dvy) ;; first thrust
 
-                  (do ((i 0 (+ i 1))) ((> i 9000) #f)
-                    ;(let ((nx (if (= i 4000)
-                    (let-al (s 0 0) ((sx 2) (sy 3) (fl 1) (sc 0) (tr 4))
-                            (if (= 0 (mod i 20))
-                              (hohmann-gp-vis sx sy fl sc tr
-                                              (plot-info "dv" dv)
-                                              (plot-info "VelX" x)
-                                              (plot-info "VelY" y)
-                                              (plot-info "r1" r1)
-                                              (plot-info "r2" tr)
-                                              (plot-info "th" th)
-                                              (plot-info "time" i)
-                                              ))))
+                  (let iterate ((t 1) (delta-vx 0) (delta-vy 0))
+                    (let-al
+                      (s delta-vx delta-vy) ((sx 2) (sy 3) (fl 1) (sc 0))
+                      (if (= 0 (mod t 20)) (hohmann-gp-vis sx sy fl sc r2 ))
+                      (cond
+                        ((=e. pi (va pos (v sx sy)) 1e-4)
+                         (let ((dvv2 (delta-velocity (v 0 0) (v sx sy)
+                                                     (/ dvm2 4) )))
+                           (iterate (+ t 1) (vx dvv2) (vy dvv2)))
+                         )
+                        ((> sc 0.0) (plot (plot-info "Score" sc))
+                                    (display "pause mouse") (newline))
+                        (else (iterate (+ t 1) 0 0))))
+                    )
                   )
                 )
         ))
