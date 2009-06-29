@@ -352,7 +352,7 @@
 
 
   (define (with-problem-output-file file scenario-id proc)
-    (let ((port (open-file-output-port file)))
+    (let ((port (open-file-output-port file (file-options no-fail))))
       ;; header
       (write-i32le port magic-nr)
       (write-i32le port team-id)
@@ -373,7 +373,7 @@
       (let ((time 0)
             (inp  '()))
         (with-problem-output-file
-          "labas.bin"
+          (string-append file ".osf")
           scenario
           (lambda (o-port)
 
@@ -455,6 +455,7 @@
       1001
       (lambda (step!)
         (define (s vx vy) (step! `((#x3e80 . 1001) (2 . ,vx) (3 . ,vy))))
+
         ;; read initial values
         (let-al (s 0 0) ((sx 2) (sy 3) (fl 1) (sc 0) (r2 4))
                 (let* ((pos  (v sx sy))
@@ -480,12 +481,8 @@
                         ((> sc 0.0) (plot (plot-info "Score" sc))
                                     (display "pause mouse") (newline))
                         (else (iterate (+ t 1) 0 0))))
-                    )
-                  )
-                )
-        ))
-    ;(display "pause 4") (newline)
-    )
+                    )))
+        )))
 
 
   (define test-run hohmann-1001)
