@@ -1,0 +1,20 @@
+Only solves the 1001 problem :)
+
+To run the program you need Ypsilon scheme, which can be found at:
+
+http://code.google.com/p/ypsilon/
+
+and Gnuplot (used for visualization)
+
+http://www.gnuplot.info/
+
+
+To run, type the command:
+
+ypsilon obf.scm | gnuplot
+
+when visualization finishes press Ctrl-C to gnuplot in the terminal.
+Program searches for bin1.obf and outputs bin1.obf.osf in the current directory.
+
+
+Author Ramūnas Gutkovas <ramunasg@gmail.com>
