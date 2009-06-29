@@ -284,6 +284,9 @@
   (define (vn a) ;; normalize
     (v* (/ 1 (vm a)) a))
 
+  (define (va a b)
+    (/ (v. a b) (* (vm a) (vm b))))
+
   (define (v-tangent a) ;; rotated counter clockwize 90
     (vector
       (* -1 (vector-ref a 1))
